@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+
+  <!-- PWA / iPhone home screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Dev Glossary" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="Every coding term explained simply, with real-world analogies and connected concepts." />
+
+  <title>Dev Glossary</title>
+
+  <style>
+    html, body { margin: 0; padding: 0; background: #000; overflow-x: hidden; }
+    #root { min-height: 100vh; }
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { height: 3px; width: 3px; }
+    ::-webkit-scrollbar-thumb { background: #1a3325; }
+    input::placeholder { color: #2d6b40; }
+    button { -webkit-tap-highlight-color: transparent; outline: none; }
+    input { -webkit-appearance: none; appearance: none; }
+    #loading {
+      position: fixed; inset: 0; background: #000;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-family: 'Courier New', monospace; color: #00ff41; z-index: 9999;
+    }
+    #loading-title { font-size: 28px; font-weight: 900; letter-spacing: 3px; text-shadow: 0 0 28px #00ff4155; }
+    #loading-sub { font-size: 11px; color: #3d8050; letter-spacing: 3px; margin-top: 8px; }
+    #loading-bar { width: 200px; height: 2px; background: #0a1a0a; margin-top: 24px; border-radius: 1px; overflow: hidden; }
+    #loading-fill { height: 100%; width: 0%; background: #00ff41; animation: fill 1.8s ease forwards; }
+    @keyframes fill { to { width: 100%; } }
+  </style>
+</head>
+<body>
+
+<!-- Loading screen shown before React mounts -->
+<div id="loading">
+  <div id="loading-title">DEV.GLOSSARY</div>
+  <div id="loading-sub">&gt; LOADING KNOWLEDGE BASE...</div>
+  <div id="loading-bar"><div id="loading-fill"></div></div>
+</div>
+
+<div id="root"></div>
+
+<!-- React 18 + Babel Standalone via CDN -->
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useMemo, useRef, useEffect } = React;
+
+// ─── DATA ─────────────────────────────────────────────────────────────────
+const CATS = [
+  { id:"core",  label:"The Basics",    emoji:"🏗️", color:"#00e5ff", desc:"What is code, anyway?" },
+  { id:"lang",  label:"Python",        emoji:"🐍", color:"#69ff47", desc:"The language you'll use most" },
+  { id:"qa",    label:"Fixing Code",   emoji:"🔧", color:"#ffea00", desc:"Bugs, errors & cleaning up" },
+  { id:"env",   label:"Your Tools",    emoji:"🛠️", color:"#d500f9", desc:"Apps & programs that help you" },
+  { id:"vcs",   label:"Saving Work",   emoji:"💾", color:"#ff9100", desc:"Git & GitHub explained simply" },
+  { id:"cicd",  label:"Automation",    emoji:"⚙️", color:"#00b0ff", desc:"Making your code run itself" },
+  { id:"ai",    label:"AI Helpers",    emoji:"🤖", color:"#ff4081", desc:"Claude, Codex & AI tools" },
+  { id:"front", label:"Building Apps", emoji:"🌐", color:"#76ff03", desc:"Websites, apps & how they look" },
+  { id:"data",  label:"Data & Info",   emoji:"📊", color:"#ffab40", desc:"Working with information" },
+];
+
+const REL = {
+  NEXT:  { sym:"→", label:"Do this next",    color:"#00ff41" },
+  NEEDS: { sym:"←", label:"Need this first", color:"#ffea00" },
+  SEE:   { sym:"↔", label:"Similar idea",    color:"#00e5ff" },
+  OPP:   { sym:"≠", label:"The opposite",    color:"#ff4081" },
+};
+
+const TERMS = [
+  { id:1, cat:"core", term:"Code", emoji:"📝",
+    simple:"Instructions you write to tell a computer exactly what to do.",
+    analogy:"Think of code like a recipe. A recipe tells a chef exactly what to do, step by step. Code does the same thing — but it tells a computer.",
+    def:"Code is text written in a special language that computers can understand. When you write code, you're writing instructions. Every app, website, and video game you've ever used was built with code. You don't need to be a math genius — coding is really about clear thinking and problem solving.",
+    links:[{id:10,rel:"SEE"},{id:11,rel:"SEE"},{id:2,rel:"SEE"}] },
+  { id:2, cat:"core", term:"Script", emoji:"📄",
+    simple:"A short program that does one specific job and then stops.",
+    analogy:"A script is like a shopping list. It has a clear start and end. You run it, it does its thing, and it's done — unlike an app that stays open all day.",
+    def:"A script is a small piece of code that does one specific task — like 'download today's sports stats' or 'send a report every morning at 7am.' Scripts run, finish their job, and stop. They're the workhorses of automation.",
+    links:[{id:30,rel:"NEXT"},{id:41,rel:"NEXT"},{id:3,rel:"SEE"}] },
+  { id:3, cat:"core", term:"App", emoji:"📱",
+    simple:"A program that has a screen you can interact with — like YouTube or Instagram.",
+    analogy:"If a script is a vending machine (press button, get snack, done), an app is a store — you can walk around, browse, come back tomorrow, and it's always open.",
+    def:"An app (short for application) is a program with a screen that responds to you. Apps run continuously and react to what you do — tapping buttons, typing text, swiping. Every icon on your phone is an app.",
+    links:[{id:60,rel:"SEE"},{id:61,rel:"SEE"},{id:2,rel:"OPP"}] },
+  { id:4, cat:"core", term:"Repository", emoji:"📦",
+    simple:"The folder that holds your entire project, plus its full history.",
+    analogy:"A repo is like a binder for a school project — it holds all your files and drafts. But unlike a binder, it also remembers every version you've ever saved.",
+    def:"A repository is where all the files for your project live, tracked by Git. Every change you've ever made is saved. You can see what the project looked like last week, last year, or the day you started.",
+    links:[{id:35,rel:"SEE"},{id:36,rel:"SEE"},{id:32,rel:"SEE"}] },
+  { id:5, cat:"core", term:"Directory", emoji:"📁",
+    simple:"Just another word for a folder on your computer.",
+    analogy:"Directories are like drawers in a filing cabinet. You put related stuff in the same drawer so you can find it later instead of dumping everything in one pile.",
+    def:"A directory is a folder that organizes files. In coding projects you use directories to separate concerns — one folder for data, one for scripts, one for output.",
+    links:[{id:6,rel:"SEE"},{id:20,rel:"SEE"}] },
+  { id:6, cat:"core", term:"File", emoji:"🗒️",
+    simple:"A single document on your computer — like a Word doc, but for code.",
+    analogy:"A file is like one sheet of paper. A directory is the folder that holds many sheets.",
+    def:"A file is any individual piece of data stored on your computer. In coding, your files might be Python scripts (.py), data files (.json or .csv), or web pages (.html). Every line of code lives inside a file.",
+    links:[{id:5,rel:"SEE"},{id:30,rel:"SEE"}] },
+  { id:7, cat:"lang", term:"Python", emoji:"🐍",
+    simple:"A beginner-friendly coding language used for data, automation, AI, and more.",
+    analogy:"Python is like the Swiss Army knife of programming. It works for websites, data, automation, AI — almost anything. And compared to other languages, it reads almost like plain English.",
+    def:"Python is a programming language — a specific way of writing instructions that computers can run. It's one of the most popular languages in the world because it's easy to read and has thousands of free add-ons (libraries) built for it.",
+    code:"# This is Python — it looks almost like English!\nname = 'Alex'\nprint('Hello, ' + name + '!')\n# Output: Hello, Alex!", lang:"python",
+    links:[{id:8,rel:"NEXT"},{id:49,rel:"SEE"},{id:50,rel:"SEE"}] },
+  { id:8, cat:"lang", term:"Library", emoji:"📚",
+    simple:"Pre-built code that someone else wrote, which you can use for free.",
+    analogy:"Building a car from scratch is insane — you buy tires and an engine that already exist. A library is like buying those parts. Someone else built it, you just use it.",
+    def:"A library is a collection of pre-written code that you can drop into your project. Instead of coding everything from scratch, you grab a library. 'pandas' makes data tables easy. 'requests' lets you download data from websites.",
+    code:"import pandas as pd\n\ndata = pd.read_csv('stats.csv')\nprint(data.head())", lang:"python",
+    links:[{id:49,rel:"NEEDS"},{id:9,rel:"SEE"}] },
+  { id:9, cat:"lang", term:"API", emoji:"🔌",
+    simple:"A way for two apps to talk to each other and share information.",
+    analogy:"An API is like a waiter at a restaurant. You don't go into the kitchen yourself — you tell the waiter what you want (your request), and they bring back your food (the data). The waiter is the API.",
+    def:"API stands for Application Programming Interface. When you want live data from another service — baseball stats, weather, stock prices — you use their API. You send a request and the API sends back an answer, usually as JSON data.",
+    links:[{id:15,rel:"SEE"},{id:55,rel:"SEE"},{id:8,rel:"NEEDS"}] },
+  { id:10, cat:"lang", term:"Function", emoji:"🎯",
+    simple:"A reusable block of code that you write once and use over and over.",
+    analogy:"A function is like a recipe card. You write the steps once. Then whenever you want to make that dish, you just say 'make pasta' — you don't rewrite all the steps every time.",
+    def:"A function is a named block of code. You define it once with 'def', give it a name, and then call it anywhere in your program just by using its name. Functions save you from copy-pasting the same code over and over.",
+    code:"def greet(name):\n    print('Hey, ' + name + '!')\n\ngreet('Alex')   # Hey, Alex!\ngreet('Jordan') # Hey, Jordan!", lang:"python",
+    links:[{id:11,rel:"SEE"},{id:19,rel:"SEE"},{id:20,rel:"NEXT"}] },
+  { id:11, cat:"lang", term:"Variable", emoji:"📦",
+    simple:"A labeled container that stores a value you want to remember.",
+    analogy:"A variable is like a labeled sticky note. You write '9' on a note and label it 'strikeouts'. Now whenever you need to know strikeouts, you just grab the 'strikeouts' note.",
+    def:"A variable stores a piece of information and gives it a name. You create one with a name, an equals sign, and a value. After that, use the name anywhere in your code to get the value back — or update it.",
+    code:"player_name = 'Ohtani'\nstrikeouts  = 9\nis_starting = True\n\nprint(player_name)  # Ohtani\nprint(strikeouts)   # 9", lang:"python",
+    links:[{id:12,rel:"SEE"},{id:10,rel:"SEE"}] },
+  { id:12, cat:"lang", term:"Data Types", emoji:"🏷️",
+    simple:"The category of a value — is it text, a number, or true/false?",
+    analogy:"It's like sorting your stuff into bins: clothes in one, books in another, food in the fridge. Python needs to know what type of thing it's working with so it handles it correctly.",
+    def:"Every value in Python has a type. String (text in quotes), Integer (whole number), Float (decimal), Boolean (True or False). Python figures out the type automatically, but knowing them helps you avoid bugs.",
+    code:"name    = 'Ohtani'  # String\nage     = 29        # Integer\nspeed   = 98.5      # Float\nplaying = True      # Boolean", lang:"python",
+    links:[{id:11,rel:"SEE"},{id:15,rel:"SEE"}] },
+  { id:13, cat:"lang", term:"Loop", emoji:"🔁",
+    simple:"Code that repeats automatically, so you don't have to write the same thing over and over.",
+    analogy:"A loop is like telling a robot: 'wash every dish in the sink.' You don't list each dish one by one — the robot just keeps going until the sink is empty.",
+    def:"A loop runs the same block of code multiple times. A 'for loop' repeats once for each item in a list. Without loops, you'd have to write the same instruction hundreds of times.",
+    code:"players = ['Alex', 'Jordan', 'Sam']\n\nfor player in players:\n    print('Welcome, ' + player + '!')", lang:"python",
+    links:[{id:14,rel:"SEE"},{id:56,rel:"SEE"}] },
+  { id:14, cat:"lang", term:"Conditional", emoji:"🚦",
+    simple:"Code that makes decisions — 'if this is true, do that.'",
+    analogy:"A conditional is like a traffic light. Green = go. Red = stop. Yellow = slow down. Your code makes decisions the same way.",
+    def:"A conditional uses 'if', 'elif' (else if), and 'else' to make decisions. The code checks if something is true, and runs different instructions depending on the answer.",
+    code:"score = 95\n\nif score >= 90:\n    grade = 'A'\nelif score >= 80:\n    grade = 'B'\nelse:\n    grade = 'C'\n\nprint(grade)  # A", lang:"python",
+    links:[{id:13,rel:"SEE"},{id:12,rel:"NEEDS"}] },
+  { id:15, cat:"lang", term:"JSON", emoji:"📋",
+    simple:"A simple way to store and share data that both humans and computers can easily read.",
+    analogy:"JSON is like a contact card — labels ('name', 'phone') paired with values ('Alex', '555-1234'). Every app agrees on the format, so any program can read it.",
+    def:"JSON (Jay-son) stores data as key-value pairs. APIs almost always return JSON. It's easy to read and write in Python.",
+    code:'{\n  "player": "Ohtani",\n  "strikeouts": 9,\n  "team": "Dodgers",\n  "active": true\n}', lang:"json",
+    links:[{id:9,rel:"SEE"},{id:54,rel:"SEE"},{id:53,rel:"SEE"}] },
+  { id:16, cat:"qa", term:"Bug", emoji:"🐛",
+    simple:"A mistake in your code that makes it behave the wrong way.",
+    analogy:"A bug is like a typo in a recipe. If it says '1 cup of salt' instead of '1 teaspoon', the dish is ruined — even though you followed the instructions exactly. The mistake was in the instructions.",
+    def:"Every programmer deals with bugs — even the pros. A bug can mean your code crashes completely, or runs fine but gives you the wrong answer.",
+    links:[{id:17,rel:"NEXT"},{id:22,rel:"SEE"},{id:23,rel:"SEE"},{id:24,rel:"SEE"}] },
+  { id:17, cat:"qa", term:"Debugging", emoji:"🔍",
+    simple:"The process of finding and fixing bugs in your code.",
+    analogy:"Debugging is detective work. You have a crime (the bug), clues (the error messages), and you have to figure out what went wrong and fix it.",
+    def:"Debugging means tracking down what went wrong and fixing it. Start by reading the error message, narrow down which line caused the problem, add print statements to see what's happening, fix it, and test again.",
+    links:[{id:16,rel:"NEEDS"},{id:19,rel:"NEXT"},{id:22,rel:"NEEDS"}] },
+  { id:18, cat:"qa", term:"Comment", emoji:"💬",
+    simple:"A note inside your code that the computer ignores — just for humans to read.",
+    analogy:"Comments are like sticky notes on a textbook. They don't change the book, but they help you understand what's going on when you come back later.",
+    def:"A comment starts with # in Python, and the computer completely ignores it. Write comments to explain what your code does, why you made a decision, or to leave notes for your future self.",
+    code:"# Check if the pitcher qualifies (10+ innings)\nif pitcher['IP'] < 10:\n    continue  # Skip to the next pitcher\n\nk_rate = pitcher['K'] / pitcher['BF']", lang:"python",
+    links:[{id:21,rel:"SEE"},{id:19,rel:"SEE"}] },
+  { id:19, cat:"qa", term:"Refactor", emoji:"🧹",
+    simple:"Cleaning up your code without changing what it actually does.",
+    analogy:"Refactoring is like reorganizing your room. You're not throwing anything away — just putting things in better places. Your room still works the same, it's just cleaner.",
+    def:"When you refactor, you rewrite parts of your code to be cleaner — but the final output stays exactly the same. You might rename variables, break a giant function into smaller ones, or remove repeated code.",
+    links:[{id:30,rel:"NEXT"},{id:17,rel:"NEEDS"},{id:20,rel:"NEXT"},{id:25,rel:"OPP"}] },
+  { id:20, cat:"qa", term:"Modular Code", emoji:"🧩",
+    simple:"Code split into small, focused pieces — like LEGO blocks.",
+    analogy:"Modular code is LEGO. Each piece does one thing. You can swap, fix, or remove one piece without wrecking everything else.",
+    def:"Modular code is split into separate functions or files where each one does exactly one job. Much easier to fix one part without breaking another, and easier for AI tools to help with specific sections.",
+    links:[{id:19,rel:"NEEDS"},{id:25,rel:"OPP"},{id:5,rel:"SEE"}] },
+  { id:21, cat:"qa", term:"Documentation", emoji:"📖",
+    simple:"Written explanations of how your code works, so humans can understand it.",
+    analogy:"Documentation is like a user manual. Your code might work perfectly, but if nobody can figure out how to use it or change it, it's not very useful.",
+    def:"Documentation includes any written explanation of your code — comments inside the code, a README explaining what the project does, or a guide on how to run it.",
+    links:[{id:18,rel:"SEE"},{id:67,rel:"SEE"}] },
+  { id:22, cat:"qa", term:"Stack Trace", emoji:"🪲",
+    simple:"The error message Python shows when your code crashes.",
+    analogy:"A stack trace is like a flight recorder. When something crashes, it records exactly what happened right before the crash. You read it to figure out what went wrong.",
+    def:"When your Python code crashes, it prints a stack trace. Read it from the bottom up: the very last line is the actual error. The lines above show how the code got there. Paste it into Claude and it'll tell you exactly what to fix.",
+    links:[{id:17,rel:"NEXT"},{id:16,rel:"SEE"}] },
+  { id:23, cat:"qa", term:"Syntax Error", emoji:"🚫",
+    simple:"A typo or formatting mistake that stops your code from running at all.",
+    analogy:"A syntax error is like writing 'The dog the park' — it's not a complete sentence. Python reads your code and says 'this doesn't make sense' and refuses to run until you fix it.",
+    def:"Syntax errors happen when you forget a colon, have a mismatched parenthesis, or make a simple typo. Python catches these immediately and tells you which line has the problem.",
+    links:[{id:24,rel:"OPP"},{id:22,rel:"SEE"},{id:17,rel:"NEXT"}] },
+  { id:24, cat:"qa", term:"Logic Error", emoji:"🤔",
+    simple:"Code that runs perfectly, but gives you the wrong answer.",
+    analogy:"A logic error is like following a GPS to the wrong address. The GPS worked perfectly — no errors — but you ended up somewhere wrong. The directions were just incorrect.",
+    def:"Logic errors are sneaky because Python doesn't notice them. The code runs without crashing, but the output is wrong. You have to spot them yourself by checking whether the output actually makes sense.",
+    links:[{id:23,rel:"OPP"},{id:17,rel:"NEXT"}] },
+  { id:25, cat:"qa", term:"Monolithic", emoji:"🗿",
+    simple:"One giant file that tries to do absolutely everything at once.",
+    analogy:"Monolithic code is like a Swiss Army knife that's been welded shut. It has everything, but if one tool breaks, you might have to throw out the whole thing.",
+    def:"A monolithic codebase is one giant file where everything depends on everything else. It works — but changing one thing often breaks another. The fix is to refactor it into modular code.",
+    links:[{id:20,rel:"OPP"},{id:19,rel:"NEXT"}] },
+  { id:26, cat:"env", term:"Terminal", emoji:"⌨️",
+    simple:"A text window where you type commands directly to your computer.",
+    analogy:"The terminal is like texting your computer. Instead of clicking icons, you type exactly what you want it to do. Scary at first, faster than clicking once you know it.",
+    def:"The terminal (also called the command line or CLI) is a text-based way to control your computer. Programmers use it to install libraries, run scripts, and push code to GitHub.",
+    links:[{id:49,rel:"SEE"},{id:27,rel:"SEE"},{id:35,rel:"SEE"}] },
+  { id:27, cat:"env", term:"VS Code", emoji:"🖥️",
+    simple:"The free app most programmers use to write code.",
+    analogy:"VS Code is like Microsoft Word, but for code. It highlights your code in colors, catches mistakes, shows your files, has a terminal built in, and connects directly to GitHub.",
+    def:"VS Code (Visual Studio Code) is a free code editor made by Microsoft. Features: syntax highlighting, built-in terminal, GitHub integration, and extensions for extra features like AI assistance.",
+    links:[{id:26,rel:"SEE"},{id:36,rel:"SEE"},{id:65,rel:"SEE"}] },
+  { id:28, cat:"env", term:"Interpreter", emoji:"⚡",
+    simple:"The program that actually reads and runs your Python code.",
+    analogy:"An interpreter is like a real-time translator. You write Python (for humans), and the interpreter translates it into something the computer can execute — one line at a time.",
+    def:"When you run a Python script, the Python interpreter is what actually executes it. It reads your code line by line, top to bottom, and carries out each instruction.",
+    links:[{id:7,rel:"NEEDS"},{id:50,rel:"SEE"}] },
+  { id:49, cat:"env", term:"pip", emoji:"📥",
+    simple:"The tool you use to install Python libraries with one quick command.",
+    analogy:"pip is like an app store for Python — except everything is free. Type 'pip install [name]' and it downloads and installs everything automatically.",
+    def:"pip is Python's package manager. You use it in the terminal to install libraries. One of the first things every Python developer learns.",
+    code:"pip install pandas\npip install requests pandas openpyxl\npip freeze > requirements.txt", lang:"bash",
+    links:[{id:8,rel:"NEXT"},{id:50,rel:"SEE"}] },
+  { id:50, cat:"env", term:"Virtual Env", emoji:"🫙",
+    simple:"A separate, clean Python workspace just for one project.",
+    analogy:"A virtual environment is like separate backpacks for school and sports. School stuff and sports gear don't get mixed up. Each project gets its own set of libraries.",
+    def:"A virtual environment is an isolated copy of Python for a single project. Prevents library version conflicts between projects. Most developers create one for every project.",
+    code:"python -m venv .venv\nsource .venv/bin/activate  # Mac/Linux\n# Terminal shows (.venv) when active", lang:"bash",
+    links:[{id:49,rel:"SEE"},{id:51,rel:"SEE"}] },
+  { id:51, cat:"env", term:".env File", emoji:"🔐",
+    simple:"A hidden file that stores your secret passwords and API keys safely.",
+    analogy:"A .env file is like a lockbox. You keep private stuff inside — keys, passwords — and it never leaves your house. You never share it online.",
+    def:"A .env file stores sensitive information: API keys, passwords, and tokens. Never upload it to GitHub. Add '.env' to your .gitignore file so it's never accidentally pushed.",
+    code:"# .env — NEVER upload to GitHub!\nAPI_KEY=your_secret_key\nDB_PASSWORD=supersecret\n\n# Add .env to .gitignore!", lang:"bash",
+    links:[{id:36,rel:"SEE"},{id:9,rel:"SEE"}] },
+  { id:35, cat:"vcs", term:"Git", emoji:"🌿",
+    simple:"A tool that tracks every single change you've ever made to your code.",
+    analogy:"Git is like Google Docs version history, but for your entire project. See what changed, who changed it, and go back to any version from any point in time.",
+    def:"Git is version control software. Every time you commit (save a snapshot), Git remembers exactly what every file looked like. The safety net under all development work.",
+    links:[{id:36,rel:"NEXT"},{id:30,rel:"NEEDS"},{id:32,rel:"SEE"}] },
+  { id:36, cat:"vcs", term:"GitHub", emoji:"🐙",
+    simple:"A website where you store your code online so it's backed up and shareable.",
+    analogy:"GitHub is like Google Drive, but built specifically for code. Your code lives on your computer and GitHub stores a copy in the cloud. If your computer dies, your code is safe.",
+    def:"GitHub is a website that stores your Git projects in the cloud. Acts as a backup, a sharing hub, and a deployment platform. Also runs automation (Actions) and free hosting (Pages).",
+    links:[{id:35,rel:"NEEDS"},{id:41,rel:"SEE"},{id:47,rel:"SEE"}] },
+  { id:30, cat:"vcs", term:"Commit", emoji:"💾",
+    simple:"A saved snapshot of your code at a specific moment in time.",
+    analogy:"A commit is like hitting Save in a video game. You can go back to that exact point if something goes wrong later.",
+    def:"When you commit, Git takes a snapshot of every file and stores it permanently with a message you write. Your entire commit history is your project's complete diary.",
+    code:"git add .\ngit commit -m 'Add K-rate grading logic'", lang:"bash",
+    links:[{id:31,rel:"NEXT"},{id:32,rel:"NEEDS"},{id:19,rel:"SEE"}] },
+  { id:31, cat:"vcs", term:"Push", emoji:"🚀",
+    simple:"Uploading your saved code from your computer up to GitHub.",
+    analogy:"Pushing is like uploading your homework to Google Classroom. You've got it done on your computer — now you send it somewhere for safekeeping.",
+    def:"After you commit code locally, 'push' sends those commits to GitHub. This syncs your local work to the cloud. Pushing can also trigger automated workflows.",
+    code:"git push origin main", lang:"bash",
+    links:[{id:41,rel:"NEXT"},{id:30,rel:"NEEDS"},{id:38,rel:"OPP"}] },
+  { id:38, cat:"vcs", term:"Pull", emoji:"📥",
+    simple:"Downloading the latest version of your code from GitHub to your computer.",
+    analogy:"If push is uploading homework, pull is downloading it back. Always pull before you start working so you have the newest version.",
+    def:"Pull downloads the latest commits from GitHub and merges them into your local project. Always pull before adding your own changes.",
+    code:"git pull origin main", lang:"bash",
+    links:[{id:31,rel:"OPP"},{id:35,rel:"SEE"}] },
+  { id:32, cat:"vcs", term:"Branch", emoji:"🌱",
+    simple:"A separate copy of your code where you can try new things safely.",
+    analogy:"A branch is like a rough draft. You write your rough draft without touching your final paper. If the draft is good, you copy it over. If it's terrible, you throw it away.",
+    def:"A branch is an independent copy of your codebase. Create one to try something new without affecting the main working version. If the experiment works, merge it back.",
+    links:[{id:33,rel:"NEXT"},{id:34,rel:"NEXT"},{id:30,rel:"SEE"}] },
+  { id:33, cat:"vcs", term:"Pull Request", emoji:"🔀",
+    simple:"A formal request to add your changes into the main code.",
+    analogy:"A pull request is like submitting a draft for approval. 'Here's what I changed — does this look good to add?' It's a chance to review before anything is official.",
+    def:"A pull request (PR) proposes merging a branch into main. It shows a side-by-side diff of every change. A chance to review your own work before it becomes official.",
+    links:[{id:34,rel:"NEXT"},{id:32,rel:"NEEDS"},{id:41,rel:"SEE"}] },
+  { id:34, cat:"vcs", term:"Merge", emoji:"🔗",
+    simple:"Combining two versions of your code into one.",
+    analogy:"Merging is like combining two Google Docs into one final document. Sometimes both docs changed the same line — that's a conflict you have to resolve.",
+    def:"When you merge, you fold one branch's changes into another (usually into main). This is how finished features become part of the official project.",
+    links:[{id:31,rel:"NEXT"},{id:32,rel:"NEEDS"},{id:33,rel:"NEEDS"}] },
+  { id:41, cat:"cicd", term:"GitHub Actions", emoji:"⚡",
+    simple:"GitHub's built-in robot that automatically runs your code on a schedule or when you push.",
+    analogy:"GitHub Actions is like a robot assistant. You give it a checklist: 'Every morning at 9am, run my build script, then publish the results.' It does it without you touching anything.",
+    def:"GitHub Actions lets you write 'workflows' — automated sequences of steps that run when triggered by events or on a timer. Many projects use Actions to automatically rebuild and republish their site daily.",
+    links:[{id:42,rel:"SEE"},{id:43,rel:"SEE"},{id:46,rel:"NEXT"}] },
+  { id:42, cat:"cicd", term:"YAML", emoji:"📝",
+    simple:"The file format used to write instructions for GitHub Actions.",
+    analogy:"YAML is like a to-do list for your robot assistant. 'Every morning at 9am, do these 5 steps in this order.' The robot reads it and follows along exactly.",
+    def:"YAML files (.yml) define your GitHub Actions workflows. They specify when to run, what environment to use, and which steps to follow. YAML is strict about indentation — one wrong space can break it.",
+    code:"name: Daily Build\non:\n  schedule:\n    - cron: '0 9 * * *'\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: python build.py", lang:"bash",
+    links:[{id:41,rel:"NEEDS"},{id:43,rel:"SEE"}] },
+  { id:43, cat:"cicd", term:"Trigger", emoji:"🎯",
+    simple:"The event that tells GitHub Actions to start doing its job.",
+    analogy:"A trigger is like an alarm clock. The alarm going off (the trigger) is what starts your morning routine (the workflow). Without a trigger, nothing ever starts.",
+    def:"Every GitHub Actions workflow needs a trigger. Common ones: 'push' (runs when you upload code), 'schedule' (runs on a timer), 'workflow_dispatch' (manual Run button).",
+    links:[{id:44,rel:"SEE"},{id:41,rel:"SEE"}] },
+  { id:44, cat:"cicd", term:"Cron", emoji:"🕐",
+    simple:"A timer written in code that tells your program exactly when to run.",
+    analogy:"Cron is like setting a calendar reminder — but written in a code format that computers understand. Five numbers control: minute, hour, day, month, and weekday.",
+    def:"A cron expression schedules automated tasks. The format uses five space-separated values. 0 9 * * * = every day at 9:00 AM UTC.",
+    code:"# minute hour day month weekday\n     0    9   *    *     *\n# = Every day at 9:00 AM UTC\n\n# Weekdays only at 8:30 AM:\n    30   8   *    *    1-5", lang:"bash",
+    links:[{id:43,rel:"SEE"},{id:41,rel:"SEE"}] },
+  { id:45, cat:"cicd", term:"Deterministic", emoji:"🎯",
+    simple:"Code that always gives the exact same output for the same input — no surprises.",
+    analogy:"Deterministic code is like a calculator. 2 + 2 always equals 4. Every single time. The opposite is code that sometimes gives you 4, sometimes 5, sometimes random.",
+    def:"Deterministic means predictable and repeatable. Run a deterministic program twice with the same inputs, get exactly the same outputs both times. What you want in every automated pipeline.",
+    links:[{id:52,rel:"SEE"},{id:66,rel:"OPP"}] },
+  { id:46, cat:"cicd", term:"Deploy", emoji:"🚀",
+    simple:"Making your finished project available for people to actually use.",
+    analogy:"Deploying is like publishing a book. You've been writing it (coding) and editing it (debugging). Now you send it to print so readers can access it. Before deploying, only you can see your work.",
+    def:"Deployment takes your finished code and makes it live — accessible to anyone. For a website, this means pushing files to a hosting service like GitHub Pages.",
+    links:[{id:47,rel:"SEE"},{id:34,rel:"NEEDS"},{id:41,rel:"SEE"}] },
+  { id:47, cat:"cicd", term:"GitHub Pages", emoji:"🌐",
+    simple:"GitHub's free service that turns your code into a live website.",
+    analogy:"GitHub Pages is like a free poster board that GitHub gives you. Put your HTML files on it and the entire internet can see your website — no server setup, no bill.",
+    def:"GitHub Pages is free web hosting built into every GitHub account. Push HTML, CSS, and JavaScript files to a specific branch, and GitHub automatically serves them as a live website.",
+    links:[{id:63,rel:"NEEDS"},{id:41,rel:"SEE"},{id:36,rel:"NEEDS"}] },
+  { id:48, cat:"cicd", term:"CI/CD", emoji:"🔄",
+    simple:"Automatically building, testing, and publishing your code every time you change it.",
+    analogy:"CI/CD is like a factory assembly line. You put in raw materials (code), and the line automatically tests it, packages it, and ships it — no human doing each step.",
+    def:"CI/CD = Continuous Integration / Continuous Deployment. Every time you push code, the pipeline runs automatically: build → test → deploy. GitHub Actions is how you build your pipeline.",
+    links:[{id:41,rel:"SEE"},{id:46,rel:"NEXT"},{id:31,rel:"NEEDS"}] },
+  { id:64, cat:"ai", term:"Prompt", emoji:"💬",
+    simple:"The instruction or question you type to an AI to tell it what you want.",
+    analogy:"A prompt is like placing an order at a restaurant. 'Something good' is a terrible order. 'Medium-rare burger, no onions, with fries' gets you exactly what you want. Be specific.",
+    def:"A prompt is what you type to an AI tool. The quality of your prompt directly affects the quality of the answer. Specific prompts — with context, constraints, and examples — get the best results.",
+    links:[{id:65,rel:"SEE"},{id:66,rel:"SEE"},{id:67,rel:"SEE"}] },
+  { id:65, cat:"ai", term:"Codex", emoji:"🤖",
+    simple:"OpenAI's AI assistant that writes and fixes code for you.",
+    analogy:"Codex is like having an expert programmer available 24/7. Describe what you want in plain English, and it writes the actual code.",
+    def:"Codex is OpenAI's AI coding tool in ChatGPT. It generates code from descriptions, fixes bugs, explains what code does, and can push changes to GitHub automatically.",
+    links:[{id:64,rel:"NEEDS"},{id:67,rel:"SEE"},{id:66,rel:"SEE"}] },
+  { id:68, cat:"ai", term:"Claude Code", emoji:"🧠",
+    simple:"Anthropic's AI that reads your entire project and edits multiple files at once.",
+    analogy:"Claude Code is like a senior developer who reads your whole codebase before giving advice. It understands how everything connects.",
+    def:"Claude Code is Anthropic's AI coding agent. It runs in your terminal, reads your entire local project, makes changes across multiple files, shows you exactly what changed, and waits for approval.",
+    links:[{id:64,rel:"NEEDS"},{id:66,rel:"SEE"},{id:19,rel:"NEXT"}] },
+  { id:66, cat:"ai", term:"Context Window", emoji:"🪟",
+    simple:"How much text an AI can read and remember in one conversation.",
+    analogy:"A context window is like short-term memory. Humans can only hold a few things in mind at once. AI models have a limit too — Claude's is very large, which is why it handles big codebases well.",
+    def:"The context window is the maximum text an AI can read in a single session. If your project is larger than the window, the AI can't read all of it at once.",
+    links:[{id:65,rel:"SEE"},{id:68,rel:"SEE"}] },
+  { id:67, cat:"ai", term:"AGENTS.md", emoji:"📋",
+    simple:"A file in your project that gives AI assistants permanent instructions.",
+    analogy:"AGENTS.md is like a briefing document for a new employee. Instead of explaining your whole project every day, you write it once and the AI reads it at the start of every session.",
+    def:"AGENTS.md is a Markdown file in your repo root. AI coding agents like Codex read it automatically. It tells the AI what the project does, the coding style, which files to avoid, and what 'done' means.",
+    links:[{id:64,rel:"SEE"},{id:65,rel:"SEE"},{id:21,rel:"SEE"}] },
+  { id:69, cat:"ai", term:"Agentic AI", emoji:"🦾",
+    simple:"An AI mode where the AI takes multiple steps on its own to finish a big task.",
+    analogy:"Normal AI answers one question. Agentic AI is like handing someone a whole project — they plan it, execute the steps, check their work, and come back with a finished result.",
+    def:"Agentic AI autonomously plans and executes multiple steps to complete a goal — reading code, writing a fix, running tests, pushing the result — without you approving each tiny step.",
+    links:[{id:65,rel:"SEE"},{id:68,rel:"SEE"},{id:67,rel:"NEEDS"}] },
+  { id:60, cat:"front", term:"Frontend", emoji:"🖼️",
+    simple:"The part of an app that users see and interact with.",
+    analogy:"The frontend is like the inside of a store — the shelves and signs customers see. It doesn't matter how great the stockroom is if the store itself is a mess.",
+    def:"The frontend is everything a user sees: layout, buttons, colors, text, animations. Built with HTML (structure), CSS (styling), and JavaScript (interactivity).",
+    links:[{id:61,rel:"OPP"},{id:63,rel:"SEE"},{id:62,rel:"SEE"}] },
+  { id:61, cat:"front", term:"Backend", emoji:"⚙️",
+    simple:"The hidden part of an app that processes data and runs the logic.",
+    analogy:"Backend is like the kitchen at a restaurant. You never see it — but that's where all the real work happens. The meal (data) comes out through the frontend (the dining room).",
+    def:"The backend is the 'behind the scenes' part — code that processes data, runs calculations, calls APIs, and handles database queries. Users never see it. Python scripts are typically backend.",
+    links:[{id:60,rel:"OPP"},{id:7,rel:"SEE"},{id:52,rel:"SEE"}] },
+  { id:62, cat:"front", term:"PWA", emoji:"📲",
+    simple:"A website that can be installed on your phone like a real app.",
+    analogy:"A PWA is a website that 'leveled up' into an app. Add it to your home screen, it loads fast even on slow wifi, and might work offline too. No App Store required.",
+    def:"A Progressive Web App (PWA) is a website with special features that make it feel native. Can be installed from the browser to your home screen and run full-screen.",
+    links:[{id:63,rel:"NEEDS"},{id:60,rel:"SEE"}] },
+  { id:63, cat:"front", term:"Static Site", emoji:"📄",
+    simple:"A website made of simple HTML files — no complicated server required.",
+    analogy:"A static site is like a printed brochure. Created in advance, looks the same for everyone, doesn't change unless you reprint it. Fast, simple, and free to host.",
+    def:"A static site is just HTML, CSS, and JavaScript files — no database, no server-side processing. Extremely fast and cheap to host. GitHub Pages only hosts static sites.",
+    links:[{id:47,rel:"SEE"},{id:58,rel:"NEEDS"}] },
+  { id:58, cat:"front", term:"Build Script", emoji:"🏗️",
+    simple:"Code that automatically turns raw data into finished HTML pages.",
+    analogy:"A build script is like a printing press. Feed in raw content (data) and templates, press the button, and out come finished pages ready to publish.",
+    def:"A build script takes raw inputs — JSON data, templates, config files — and produces the final output files ready to deploy.",
+    links:[{id:52,rel:"SEE"},{id:63,rel:"NEXT"},{id:46,rel:"NEXT"}] },
+  { id:52, cat:"data", term:"Pipeline", emoji:"🪄",
+    simple:"A series of automatic steps where data flows from one process to the next.",
+    analogy:"A pipeline is like a factory assembly line. Raw materials go in one end. Each station does one job. A finished product comes out the other end automatically.",
+    def:"A data pipeline is an automated sequence: get data → clean it → transform it → analyze it → output results → publish. Each step's output feeds the next.",
+    links:[{id:55,rel:"SEE"},{id:56,rel:"NEXT"},{id:58,rel:"NEXT"},{id:46,rel:"NEXT"}] },
+  { id:53, cat:"data", term:"Schema", emoji:"📐",
+    simple:"The rulebook that defines what your data must look like.",
+    analogy:"A schema is like a form with required blanks. If it requires 'First Name, Last Name, Phone', submitting without a phone number is a violation.",
+    def:"A schema defines the structure data must follow — which fields exist, what types they must be. If your code expects a 'k_rate' field in every record and one record is missing it, things break.",
+    links:[{id:15,rel:"SEE"},{id:54,rel:"SEE"}] },
+  { id:54, cat:"data", term:"Parsing", emoji:"🔬",
+    simple:"Reading raw data and pulling out just the parts you actually need.",
+    analogy:"Parsing is like reading a newspaper and circling only the articles you care about. The paper has everything — you just extract what's relevant.",
+    def:"Parsing means reading data in one format and extracting specific values. When an API returns a large JSON object, you parse it to pull out just the fields you need.",
+    links:[{id:15,rel:"SEE"},{id:56,rel:"NEXT"},{id:55,rel:"NEEDS"}] },
+  { id:55, cat:"data", term:"Data Ingestion", emoji:"📡",
+    simple:"The step where you pull in raw data from the outside world.",
+    analogy:"Data ingestion is like grocery shopping. Before you can cook anything, you need ingredients. Ingestion is the 'go get the ingredients' step of your pipeline.",
+    def:"Data ingestion is the first step in any pipeline: getting raw data from outside into your system — calling an API, downloading a CSV, scraping a website.",
+    links:[{id:9,rel:"SEE"},{id:54,rel:"NEXT"},{id:52,rel:"SEE"}] },
+  { id:56, cat:"data", term:"Transformation", emoji:"⚗️",
+    simple:"Converting data from its raw form into something more useful.",
+    analogy:"Transformation is like cooking. Raw ingredients (raw data) get heat, mixing, and seasoning (calculations and formatting) until you have something ready to serve.",
+    def:"Transformation is where raw data becomes useful data — renaming columns, filtering bad records, calculating new values, converting formats, combining datasets.",
+    links:[{id:54,rel:"NEEDS"},{id:57,rel:"NEXT"},{id:58,rel:"NEXT"}] },
+  { id:57, cat:"data", term:"Aggregation", emoji:"📊",
+    simple:"Combining many data points into one summary number.",
+    analogy:"Aggregation is like a report card. Instead of showing every quiz score, it summarizes with one letter grade. Averages, totals, maximums — all aggregations.",
+    def:"Aggregation takes a collection of values and collapses them into a single summary. Sum, mean, max, percentile, rolling average. Turns raw numbers into the insights you care about.",
+    links:[{id:56,rel:"NEEDS"},{id:15,rel:"NEXT"}] },
+  { id:59, cat:"data", term:"CSV", emoji:"🗂️",
+    simple:"A simple spreadsheet file where values are separated by commas.",
+    analogy:"A CSV is a spreadsheet saved as plain text. Each row is a line and each column is separated by a comma. Opens in Excel, but code can read it directly too.",
+    def:"CSV = Comma-Separated Values. Each line is a row, values separated by commas. Almost every data source can export a CSV, and pandas can load one in a single line.",
+    code:"import pandas as pd\ndf = pd.read_csv('stats.csv')\nprint(df.head())  # First 5 rows", lang:"python",
+    links:[{id:15,rel:"SEE"},{id:54,rel:"NEXT"}] },
+];
+
+const PATHWAYS = [
+  { id:"build",    emoji:"🏗️", label:"Build Something", desc:"From first line of code to live on the web", color:"#00ff41", steps:[1,10,19,30,31,48,46] },
+  { id:"bughunt",  emoji:"🐛", label:"Fix a Bug",        desc:"Find it, understand it, clean it up",       color:"#ffea00", steps:[16,22,17,19,30] },
+  { id:"pipeline", emoji:"📊", label:"Data Pipeline",    desc:"Take raw data all the way to live results",  color:"#00e5ff", steps:[55,54,56,57,58,63,46] },
+  { id:"ai",       emoji:"🤖", label:"AI Workflow",      desc:"Use AI to build and ship code faster",       color:"#ff4081", steps:[64,67,69,33,34,31,46] },
+  { id:"setup",    emoji:"🚀", label:"Start a Project",  desc:"Go from zero to a running project",          color:"#d500f9", steps:[36,4,50,49,8,51,27] },
+];
+
+const byId = id => TERMS.find(t => t.id === id);
+const catOf = id => CATS.find(c => c.id === id);
+
+// ─── MATRIX RAIN ─────────────────────────────────────────────────────────
+function MatrixRain() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const c = ref.current; if (!c) return;
+    const ctx = c.getContext("2d");
+    const resize = () => { c.width = window.innerWidth; c.height = window.innerHeight; };
+    resize(); window.addEventListener("resize", resize);
+    const CH = "01アイウABCDEF{}[]";
+    const SZ = 13; let d = [];
+    const init = () => { d = Array.from({length:Math.floor(c.width/SZ)}, () => Math.random() * -60); };
+    init(); window.addEventListener("resize", init);
+    const draw = () => {
+      ctx.fillStyle = "rgba(0,0,0,0.045)"; ctx.fillRect(0,0,c.width,c.height);
+      ctx.font = `${SZ}px monospace`;
+      d.forEach((y,i) => {
+        if (y > 0) { ctx.fillStyle = Math.random() > .97 ? "rgba(180,255,180,0.55)" : "rgba(0,255,65,0.11)"; ctx.fillText(CH[Math.floor(Math.random()*CH.length)], i*SZ, y*SZ); }
+        if (y*SZ > c.height && Math.random() > .975) d[i] = 0;
+        d[i] += 0.45;
+      });
+    };
+    const id = setInterval(draw, 55);
+    return () => { clearInterval(id); window.removeEventListener("resize",resize); window.removeEventListener("resize",init); };
+  }, []);
+  return <canvas ref={ref} style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",opacity:0.12,pointerEvents:"none",zIndex:0}} />;
+}
+
+function Code({ code, lang }) {
+  const [ok, setOk] = useState(false);
+  const copy = () => { try { navigator.clipboard.writeText(code).then(()=>{ setOk(true); setTimeout(()=>setOk(false),1600); }); } catch(e){} };
+  return (
+    <div style={{background:"#04100a",border:"1px solid #1e4030",borderRadius:8,overflow:"hidden"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 12px",background:"#071408",borderBottom:"1px solid #1a3828"}}>
+        <span style={{fontFamily:"monospace",fontSize:10,color:"#3d8050",letterSpacing:1}}>{lang==="bash"?"BASH":lang==="json"?"JSON":"PYTHON"}</span>
+        <button onClick={copy} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"monospace",fontSize:10,color:ok?"#00ff41":"#3d8050",padding:0}}>{ok?"✓ Copied":"Copy"}</button>
+      </div>
+      <pre style={{margin:0,padding:"12px 14px",fontFamily:"'SF Mono','Menlo','Courier New',monospace",fontSize:12.5,color:"#b0f0b0",lineHeight:1.9,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>{code}</pre>
+    </div>
+  );
+}
+
+function HomeScreen({ onCat, search, onSearch, onTerm }) {
+  const results = useMemo(() => {
+    if (!search.trim()) return [];
+    const q = search.toLowerCase();
+    return TERMS.filter(t => t.term.toLowerCase().includes(q)||t.simple.toLowerCase().includes(q)||t.def.toLowerCase().includes(q)).slice(0,10);
+  }, [search]);
+
+  return (
+    <div style={{paddingBottom:90,position:"relative",zIndex:1}}>
+      <div style={{padding:"20px 16px 14px",textAlign:"center"}}>
+        <div style={{fontFamily:"monospace",fontSize:9,color:"#3d8050",letterSpacing:4,marginBottom:6}}>&gt; LOADING KNOWLEDGE</div>
+        <div style={{fontFamily:"'Courier New',monospace",fontSize:30,fontWeight:900,color:"#00ff41",letterSpacing:3,textShadow:"0 0 28px #00ff4148",lineHeight:1}}>DEV GLOSSARY</div>
+        <div style={{fontFamily:"monospace",fontSize:13,color:"#a8dba8",marginTop:10,lineHeight:1.65,maxWidth:380,margin:"10px auto 0"}}>
+          Every coding term, explained simply. Tap anything to learn it — and see how it connects.
+        </div>
+      </div>
+      <div style={{padding:"0 16px 8px"}}>
+        <div style={{position:"relative"}}>
+          <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:16,lineHeight:1}}>🔍</span>
+          <input type="search" placeholder="Search any term..." value={search} onChange={e=>onSearch(e.target.value)}
+            style={{width:"100%",padding:"11px 12px 11px 38px",background:"#06110a",border:"1px solid #1e4030",borderRadius:10,color:"#00ff41",fontSize:14,fontFamily:"monospace",outline:"none"}} />
+        </div>
+      </div>
+      {results.length > 0 && (
+        <div style={{padding:"4px 16px 8px"}}>
+          <div style={{fontFamily:"monospace",fontSize:9,color:"#4a8a5a",letterSpacing:2,marginBottom:8}}>{results.length} RESULTS</div>
+          {results.map(t => {
+            const cat = catOf(t.cat);
+            return (
+              <button key={t.id} onClick={()=>onTerm(t,null)} style={{width:"100%",textAlign:"left",display:"block",marginBottom:6,padding:"12px 13px",background:"#07100a",border:"1px solid #1a3325",borderLeft:`3px solid ${cat?.color||"#00ff41"}`,borderRadius:8,cursor:"pointer"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                  <span style={{fontSize:16}}>{t.emoji}</span>
+                  <span style={{fontFamily:"monospace",fontSize:14,fontWeight:900,color:cat?.color||"#00ff41",letterSpacing:1}}>{t.term}</span>
+                  <span style={{fontFamily:"monospace",fontSize:9,color:"#3d8050",marginLeft:"auto"}}>{cat?.label}</span>
+                </div>
+                <div style={{fontFamily:"monospace",fontSize:12.5,color:"#a8dba8",lineHeight:1.5}}>{t.simple}</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {!search && (
+        <div style={{padding:"6px 16px 0"}}>
+          <div style={{fontFamily:"monospace",fontSize:9,color:"#4a8a5a",letterSpacing:2,marginBottom:12}}>// PICK A TOPIC</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {CATS.map(c => {
+              const count = TERMS.filter(t=>t.cat===c.id).length;
+              return (
+                <button key={c.id} onClick={()=>onCat(c.id)} style={{textAlign:"left",padding:"14px 13px",background:"#07100a",border:`1px solid ${c.color}30`,borderTop:`3px solid ${c.color}`,borderRadius:8,cursor:"pointer",display:"block"}}>
+                  <div style={{fontSize:24,marginBottom:7}}>{c.emoji}</div>
+                  <div style={{fontFamily:"monospace",fontSize:12,fontWeight:900,color:c.color,letterSpacing:0.5,lineHeight:1.3}}>{c.label}</div>
+                  <div style={{fontFamily:"monospace",fontSize:10,color:"#4a8a5a",marginTop:4,lineHeight:1.4}}>{c.desc}</div>
+                  <div style={{fontFamily:"monospace",fontSize:9,color:c.color,opacity:0.65,marginTop:7}}>{count} terms →</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoryScreen({ catId, onTerm, onBack }) {
+  const cat = catOf(catId);
+  const terms = TERMS.filter(t => t.cat === catId);
+  return (
+    <div style={{position:"relative",zIndex:1}}>
+      <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #1a3325",background:"rgba(0,0,0,0.6)"}}>
+        <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"monospace",fontSize:11,color:"#3d9e4d",padding:0,letterSpacing:1,marginBottom:10,display:"block"}}>← HOME</button>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:32}}>{cat?.emoji}</span>
+          <div>
+            <div style={{fontFamily:"'Courier New',monospace",fontSize:20,fontWeight:900,color:cat?.color,letterSpacing:1.5,lineHeight:1}}>{cat?.label}</div>
+            <div style={{fontFamily:"monospace",fontSize:11,color:"#4a8a5a",marginTop:3}}>{cat?.desc} · {terms.length} terms</div>
+          </div>
+        </div>
+      </div>
+      <div style={{padding:"10px 16px 90px"}}>
+        {terms.map(t => (
+          <button key={t.id} onClick={()=>onTerm(t,catId)} style={{width:"100%",textAlign:"left",display:"block",marginBottom:8,padding:"13px 14px",background:"#07100a",border:"1px solid #1a3325",borderLeft:`3px solid ${cat?.color||"#00ff41"}`,borderRadius:8,cursor:"pointer"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                  <span style={{fontSize:18}}>{t.emoji}</span>
+                  <span style={{fontFamily:"monospace",fontSize:15,fontWeight:900,color:cat?.color,letterSpacing:1}}>{t.term}</span>
+                </div>
+                <div style={{fontFamily:"monospace",fontSize:12.5,color:"#a8dba8",lineHeight:1.55}}>{t.simple}</div>
+              </div>
+              <span style={{fontFamily:"monospace",fontSize:16,color:"#2a7a3a",flexShrink:0,marginTop:2}}>→</span>
+            </div>
+            {t.links?.length > 0 && <div style={{fontFamily:"monospace",fontSize:9,color:"#4a8a5a",marginTop:7}}>{t.links.length} connection{t.links.length!==1?"s":""}</div>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TermScreen({ term, onNav, onBack, backLabel, trail }) {
+  const cat = catOf(term.cat);
+  const grouped = {};
+  (term.links||[]).forEach(l => { if(!grouped[l.rel]) grouped[l.rel]=[]; grouped[l.rel].push(l); });
+  return (
+    <div style={{position:"relative",zIndex:1}}>
+      <div style={{padding:"14px 16px 12px",borderBottom:"1px solid #1a3325",background:"rgba(0,0,0,0.6)"}}>
+        <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontFamily:"monospace",fontSize:11,color:"#3d9e4d",padding:0,letterSpacing:0.5,marginBottom:trail.length?6:10,display:"block"}}>← {backLabel}</button>
+        {trail.length > 0 && (
+          <div style={{fontFamily:"monospace",fontSize:9,color:"#3d8050",marginBottom:8,display:"flex",flexWrap:"wrap",gap:3,alignItems:"center"}}>
+            {trail.map((t,i)=><span key={i} style={{opacity:0.7}}>{t.term}{" → "}</span>)}
+            <span style={{color:"#5aaa6a"}}>{term.term}</span>
+          </div>
+        )}
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:38}}>{term.emoji}</span>
+          <div>
+            <div style={{fontFamily:"monospace",fontSize:9,color:cat?.color,letterSpacing:3,opacity:0.8,marginBottom:3}}>{cat?.label?.toUpperCase()}</div>
+            <div style={{fontFamily:"'Courier New',monospace",fontSize:24,fontWeight:900,color:"#00ff41",letterSpacing:2,lineHeight:1,textShadow:"0 0 18px #00ff4140"}}>{term.term}</div>
+          </div>
+        </div>
+      </div>
+      <div style={{padding:"14px 16px 90px"}}>
+        <div style={{padding:"13px 15px",background:"#00ff4112",border:"1px solid #00ff4128",borderRadius:10,marginBottom:12}}>
+          <div style={{fontFamily:"monospace",fontSize:9,color:"#00cc33",letterSpacing:2,marginBottom:6,fontWeight:700}}>💡 IN PLAIN ENGLISH</div>
+          <div style={{fontFamily:"monospace",fontSize:14,color:"#e0ffe0",lineHeight:1.65,fontWeight:600}}>{term.simple}</div>
+        </div>
+        {term.analogy && (
+          <div style={{padding:"13px 15px",background:"#06110a",border:"1px solid #1e4030",borderRadius:10,marginBottom:12}}>
+            <div style={{fontFamily:"monospace",fontSize:9,color:"#3d8050",letterSpacing:2,marginBottom:6,fontWeight:700}}>🌍 REAL WORLD EXAMPLE</div>
+            <div style={{fontFamily:"monospace",fontSize:13,color:"#a8dba8",lineHeight:1.75,fontStyle:"italic"}}>{term.analogy}</div>
+          </div>
+        )}
+        <div style={{padding:"13px 15px",background:"#060e06",border:"1px solid #1e3d25",borderRadius:10,marginBottom:12}}>
+          <div style={{fontFamily:"monospace",fontSize:9,color:"#3d8050",letterSpacing:2,marginBottom:6,fontWeight:700}}>📚 THE FULL STORY</div>
+          <div style={{fontFamily:"monospace",fontSize:13.5,color:"#c8f0c8",lineHeight:1.9}}>{term.def}</div>
+        </div>
+        {term.code && (
+          <div style={{marginBottom:16}}>
+            <div style={{fontFamily:"monospace",fontSize:9,color:"#3d8050",letterSpacing:2,marginBottom:6,fontWeight:700}}>👀 SEE IT IN CODE</div>
+            <Code code={term.code} lang={term.lang} />
+          </div>
+        )}
+        {Object.keys(grouped).length > 0 && (
+          <div style={{marginTop:6}}>
+            <div style={{fontFamily:"monospace",fontSize:9,color:"#4a8a5a",letterSpacing:2,marginBottom:14,fontWeight:700}}>🔗 CONNECTED TERMS</div>
+            {["NEXT","NEEDS","SEE","OPP"].filter(r=>grouped[r]).map(rel=>{
+              const meta = REL[rel];
+              return (
+                <div key={rel} style={{marginBottom:14}}>
+                  <div style={{fontFamily:"monospace",fontSize:10,color:meta.color,letterSpacing:1,marginBottom:8,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:14}}>{meta.sym}</span>{meta.label.toUpperCase()}
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+                    {grouped[rel].map(l=>{
+                      const t=byId(l.id); if(!t) return null;
+                      return (
+                        <button key={l.id} onClick={()=>onNav(t)}
+                          style={{fontFamily:"monospace",fontSize:12,fontWeight:700,color:meta.color,background:meta.color+"14",border:`1px solid ${meta.color}50`,borderRadius:7,padding:"8px 13px",cursor:"pointer",textTransform:"uppercase",display:"flex",alignItems:"center",gap:5}}>
+                          <span style={{fontSize:15}}>{t.emoji}</span>{t.term}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PathwaysScreen({ onNav }) {
+  return (
+    <div style={{padding:"16px 16px 90px",position:"relative",zIndex:1}}>
+      <div style={{fontFamily:"'Courier New',monospace",fontSize:22,fontWeight:900,color:"#00ff41",letterSpacing:2,marginBottom:4}}>DEV PATHWAYS</div>
+      <div style={{fontFamily:"monospace",fontSize:13,color:"#a8dba8",lineHeight:1.65,marginBottom:20}}>Real workflows coders follow every day. Tap any step to learn what that term means.</div>
+      {PATHWAYS.map(p=>(
+        <div key={p.id} style={{marginBottom:22,border:`1px solid ${p.color}30`,borderRadius:12,overflow:"hidden"}}>
+          <div style={{background:p.color+"18",padding:"13px 15px",borderBottom:`1px solid ${p.color}30`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+              <span style={{fontSize:20}}>{p.emoji}</span>
+              <span style={{fontFamily:"monospace",fontSize:14,fontWeight:900,color:p.color,letterSpacing:1}}>{p.label}</span>
+            </div>
+            <div style={{fontFamily:"monospace",fontSize:11,color:p.color,opacity:0.8}}>{p.desc}</div>
+          </div>
+          <div style={{padding:"13px 14px",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+            <div style={{display:"flex",alignItems:"center",minWidth:"max-content"}}>
+              {p.steps.map((id,i)=>{
+                const t=byId(id); if(!t) return null;
+                return (
+                  <div key={id} style={{display:"flex",alignItems:"center"}}>
+                    <button onClick={()=>onNav(t)} style={{fontFamily:"monospace",fontSize:11,fontWeight:700,color:p.color,background:p.color+"18",border:`1px solid ${p.color}50`,borderRadius:7,padding:"8px 11px",cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5}}>
+                      <span style={{fontSize:13}}>{t.emoji}</span>{t.term}
+                    </button>
+                    {i<p.steps.length-1&&<span style={{fontFamily:"monospace",fontSize:15,color:p.color,opacity:0.4,margin:"0 2px"}}>→</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BottomNav({ active, onChange }) {
+  const tabs=[{id:"home",emoji:"🏠",label:"Home"},{id:"paths",emoji:"🗺️",label:"Paths"}];
+  return (
+    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:"rgba(0,0,0,0.97)",borderTop:"1px solid #1a3325",display:"flex"}}>
+      {tabs.map(t=>(
+        <button key={t.id} onClick={()=>onChange(t.id)} style={{flex:1,padding:"10px 0 14px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+          <span style={{fontSize:20}}>{t.emoji}</span>
+          <span style={{fontFamily:"monospace",fontSize:9,letterSpacing:1,color:active===t.id?"#00ff41":"#3d8050",fontWeight:active===t.id?900:400}}>{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function DevGlossary() {
+  const [screen, setScreen]   = useState("home");
+  const [catId, setCatId]     = useState(null);
+  const [term, setTerm]       = useState(null);
+  const [trail, setTrail]     = useState([]);
+  const [backLabel, setBackLabel] = useState("HOME");
+  const [search, setSearch]   = useState("");
+  const [nav, setNav]         = useState("home");
+
+  const goHome = () => { setScreen("home"); setCatId(null); setTerm(null); setTrail([]); setNav("home"); };
+  const goCat  = id => { setCatId(id); setScreen("category"); setTerm(null); setTrail([]); setSearch(""); };
+  const goTerm = (t, fromCat) => {
+    if (screen === "term" && term) { setTrail(prev => [...prev, term]); setBackLabel(term.term); }
+    else if (fromCat) { setTrail([]); setBackLabel(catOf(fromCat)?.label || "BACK"); }
+    else { setTrail([]); setBackLabel("HOME"); }
+    setTerm(t); setScreen("term"); setSearch("");
+  };
+  const goBack = () => {
+    if (screen === "term" && trail.length > 0) {
+      const prev = trail[trail.length - 1];
+      setTerm(prev); setTrail(t => t.slice(0,-1));
+      setBackLabel(trail.length > 1 ? trail[trail.length-2].term : (catId ? catOf(catId)?.label : "HOME"));
+    } else if (screen === "term" && catId) { setTerm(null); setTrail([]); setScreen("category"); }
+    else if (screen === "term") { goHome(); }
+    else if (screen === "category") { setCatId(null); setScreen("home"); }
+    else { goHome(); }
+  };
+  const handleNav = v => {
+    setNav(v);
+    if (v === "home") goHome();
+    else { setScreen("paths"); setTerm(null); setTrail([]); }
+  };
+
+  // Hide loading screen once mounted
+  useEffect(() => {
+    const el = document.getElementById("loading");
+    if (el) setTimeout(() => { el.style.opacity="0"; el.style.transition="opacity 0.4s"; setTimeout(()=>el.remove(),400); }, 400);
+  }, []);
+
+  return (
+    <div style={{background:"#000",minHeight:"100vh",overflowX:"hidden"}}>
+      <MatrixRain />
+      {screen === "home" && (
+        <div style={{position:"sticky",top:0,zIndex:100,background:"rgba(0,0,0,0.95)",backdropFilter:"blur(10px)",borderBottom:"1px solid #1a3325",padding:"11px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontFamily:"'Courier New',monospace",fontSize:17,fontWeight:900,color:"#00ff41",letterSpacing:2.5,textShadow:"0 0 16px #00ff4135"}}>DEV.GLOSSARY</div>
+          <div style={{fontFamily:"monospace",fontSize:9,color:"#4a8a5a"}}>{TERMS.length} terms</div>
+        </div>
+      )}
+      {screen==="home"     && <HomeScreen onCat={goCat} search={search} onSearch={setSearch} onTerm={goTerm} />}
+      {screen==="category" && <CategoryScreen catId={catId} onTerm={goTerm} onBack={goBack} />}
+      {screen==="term"     && <TermScreen term={term} onNav={goTerm} onBack={goBack} backLabel={backLabel} trail={trail} />}
+      {screen==="paths"    && <PathwaysScreen onNav={t=>goTerm(t,null)} />}
+      <BottomNav active={nav} onChange={handleNav} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<DevGlossary />);
+</script>
+</body>
+</html>
